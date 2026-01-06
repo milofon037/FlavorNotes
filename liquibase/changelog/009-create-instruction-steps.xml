@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="009-create-instruction-steps" author="flavornotes">
+        <createTable tableName="instruction_steps">
+            <column name="step_id" type="SERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="recipe_id" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="step_number" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="instruction_text" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        
+        <addForeignKeyConstraint
+            baseTableName="instruction_steps"
+            baseColumnNames="recipe_id"
+            constraintName="fk_instruction_steps_recipe_id"
+            referencedTableName="recipes"
+            referencedColumnNames="recipe_id"
+            onDelete="CASCADE"/>
+    </changeSet>
+
+</databaseChangeLog>
+

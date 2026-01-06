@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="006-create-recipe-ingredients" author="flavornotes">
+        <createTable tableName="recipe_ingredients">
+            <column name="recipe_id" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ingredient_id" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_id" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantity" type="DECIMAL(10,2)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        
+        <addPrimaryKey tableName="recipe_ingredients" columnNames="recipe_id, ingredient_id"/>
+        
+        <addForeignKeyConstraint
+            baseTableName="recipe_ingredients"
+            baseColumnNames="recipe_id"
+            constraintName="fk_recipe_ingredients_recipe_id"
+            referencedTableName="recipes"
+            referencedColumnNames="recipe_id"
+            onDelete="CASCADE"/>
+            
+        <addForeignKeyConstraint
+            baseTableName="recipe_ingredients"
+            baseColumnNames="ingredient_id"
+            constraintName="fk_recipe_ingredients_ingredient_id"
+            referencedTableName="ingredients"
+            referencedColumnNames="ingredient_id"
+            onDelete="CASCADE"/>
+            
+        <addForeignKeyConstraint
+            baseTableName="recipe_ingredients"
+            baseColumnNames="unit_id"
+            constraintName="fk_recipe_ingredients_unit_id"
+            referencedTableName="units"
+            referencedColumnNames="unit_id"
+            onDelete="RESTRICT"/>
+    </changeSet>
+
+</databaseChangeLog>
+

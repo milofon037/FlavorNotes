@@ -1,0 +1,87 @@
+services:
+  postgres:
+    image: mirror.gcr.io/postgres:16
+    container_name: flavornotes-postgres
+    environment:
+      POSTGRES_DB: flavornotes
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "6432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./liquibase/changelog:/liquibase/changelog
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: mirror.gcr.io/redis:7-alpine
+    container_name: flavornotes-redis
+    ports:
+      - "7379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  liquibase:
+    image: mirror.gcr.io/liquibase/liquibase:latest
+    container_name: flavornotes-liquibase
+    volumes:
+      - ./liquibase/changelog:/liquibase/changelog
+      - ./postgresql-42.7.8.jar:/liquibase/internal/lib/postgresql.jar
+    command: --changeLogFile=changelog-master.xml --url=jdbc:postgresql://postgres:5432/flavornotes --username=postgres --password=postgres update
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ./FlavorNotes
+      dockerfile: Dockerfile
+    container_name: flavornotes-api
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=flavornotes;Username=postgres;Password=postgres
+      - ConnectionStrings__Redis=redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      liquibase:
+        condition: service_completed_successfully
+
+  prometheus:
+    image: mirror.gcr.io/prom/prometheus:latest
+    container_name: flavornotes-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+  grafana:
+    image: mirror.gcr.io/grafana/grafana:12.3.1
+    container_name: flavornotes-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  grafana_data:
+

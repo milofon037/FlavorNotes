@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="008-create-recipe-tags" author="flavornotes">
+        <createTable tableName="recipe_tags">
+            <column name="recipe_id" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tag_id" type="INT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        
+        <addPrimaryKey tableName="recipe_tags" columnNames="recipe_id, tag_id"/>
+        
+        <addForeignKeyConstraint
+            baseTableName="recipe_tags"
+            baseColumnNames="recipe_id"
+            constraintName="fk_recipe_tags_recipe_id"
+            referencedTableName="recipes"
+            referencedColumnNames="recipe_id"
+            onDelete="CASCADE"/>
+            
+        <addForeignKeyConstraint
+            baseTableName="recipe_tags"
+            baseColumnNames="tag_id"
+            constraintName="fk_recipe_tags_tag_id"
+            referencedTableName="tags"
+            referencedColumnNames="tag_id"
+            onDelete="CASCADE"/>
+    </changeSet>
+
+</databaseChangeLog>
+

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <include file="001-create-users.xml"/>
+    <include file="002-create-categories.xml"/>
+    <include file="003-create-recipes.xml"/>
+    <include file="004-create-ingredients.xml"/>
+    <include file="005-create-units.xml"/>
+    <include file="006-create-recipe-ingredients.xml"/>
+    <include file="007-create-tags.xml"/>
+    <include file="008-create-recipe-tags.xml"/>
+    <include file="009-create-instruction-steps.xml"/>
+    <include file="010-create-user-favorite-recipes.xml"/>
+    <include file="011-create-api-keys.xml"/>
+    <include file="012-add-soft-delete.xml"/>
+
+</databaseChangeLog>
+
