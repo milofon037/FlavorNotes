@@ -257,9 +257,9 @@ public class RecipeRepository : IRecipeRepository
 
     public async Task<List<Recipe>> GetFavoritesByUserAsync(int userId)
     {
-        return await _context.UserFavoriteRecipes
-            .Where(ufr => ufr.UserId == userId)
-            .Select(ufr => ufr.Recipe)
+        return await _context.Recipes
+            .Where(r => _context.UserFavoriteRecipes
+                .Any(ufr => ufr.UserId == userId && ufr.RecipeId == r.RecipeId))
             .Include(r => r.User)
             .Include(r => r.Category)
             .Include(r => r.RecipeIngredients)

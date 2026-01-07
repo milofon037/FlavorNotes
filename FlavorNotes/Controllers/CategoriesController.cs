@@ -21,9 +21,12 @@ public class CategoriesController : ControllerBase
     [HttpGet]
     [Authorize(AuthenticationSchemes = "Bearer,ApiKey")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<List<CategoryDto>>> GetCategories()
+    public async Task<ActionResult<PagedResponseDto<CategoryDto>>> GetCategories(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null)
     {
-        var result = await _categoryService.GetAllAsync();
+        var result = await _categoryService.GetPagedAsync(page, pageSize, search);
         return Ok(result);
     }
 
@@ -57,6 +60,7 @@ public class CategoriesController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [HttpPatch("{id}")]
     [Authorize(AuthenticationSchemes = "Bearer", Roles = "Admin,Manager")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FlavorNotes.DTO;
-using FlavorNotes.Repositories.Interfaces;
+using FlavorNotes.Services.Interfaces;
 
 namespace FlavorNotes.Controllers;
 
@@ -10,28 +10,23 @@ namespace FlavorNotes.Controllers;
 [Produces("application/json")]
 public class IngredientsController : ControllerBase
 {
-    private readonly IIngredientRepository _ingredientRepository;
-    private readonly ILogger<IngredientsController> _logger;
+    private readonly IIngredientService _ingredientService;
 
-    public IngredientsController(IIngredientRepository ingredientRepository, ILogger<IngredientsController> logger)
+    public IngredientsController(IIngredientService ingredientService)
     {
-        _ingredientRepository = ingredientRepository;
-        _logger = logger;
+        _ingredientService = ingredientService;
     }
 
     [HttpGet]
     [Authorize(AuthenticationSchemes = "Bearer,ApiKey")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<List<IngredientDto>>> GetIngredients()
+    public async Task<ActionResult<PagedResponseDto<IngredientDto>>> GetIngredients(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null)
     {
-        var ingredients = await _ingredientRepository.GetAllAsync();
-        var dtos = ingredients.Select(i => new IngredientDto
-        {
-            IngredientId = i.IngredientId,
-            Name = i.Name
-        }).ToList();
-        
-        return Ok(dtos);
+        var result = await _ingredientService.GetPagedAsync(page, pageSize, search);
+        return Ok(result);
     }
 
     [HttpPost]
@@ -41,25 +36,7 @@ public class IngredientsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<IngredientDto>> CreateIngredient([FromBody] IngredientDto dto)
     {
-        if (string.IsNullOrEmpty(dto.Name))
-        {
-            return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Ingredient name is required" } });
-        }
-
-        var ingredient = new FlavorNotes.Models.Entities.Ingredient
-        {
-            Name = dto.Name
-        };
-
-        var created = await _ingredientRepository.CreateAsync(ingredient);
-        _logger.LogInformation("Ingredient created: {IngredientName}", dto.Name);
-        
-        var result = new IngredientDto
-        {
-            IngredientId = created.IngredientId,
-            Name = created.Name
-        };
-        
+        var result = await _ingredientService.CreateAsync(dto);
         return CreatedAtAction(nameof(GetIngredients), new { id = result.IngredientId }, result);
     }
 }

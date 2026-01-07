@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using FlavorNotes.Data;
 using FlavorNotes.Models.Entities;
 using FlavorNotes.Repositories.Interfaces;
+using FlavorNotes.DTO;
 
 namespace FlavorNotes.Repositories;
 
@@ -46,6 +47,41 @@ public class UserRepository : IUserRepository
     public async Task<List<User>> GetAllAsync()
     {
         return await _context.Users.ToListAsync();
+    }
+
+    public async Task<PagedResponseDto<UserDto>> GetPagedAsync(int page, int pageSize, string? search)
+    {
+        var query = _context.Users.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(u => u.Username.Contains(search) || u.Email.Contains(search));
+        }
+
+        var total = await query.CountAsync();
+
+        var users = await query
+            .OrderBy(u => u.Username)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var items = users.Select(u => new UserDto
+        {
+            UserId = u.UserId,
+            Username = u.Username,
+            Email = u.Email,
+            Role = u.Role,
+            CreatedAt = u.CreatedAt
+        }).ToList();
+
+        return new PagedResponseDto<UserDto>
+        {
+            Items = items,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<bool> UsernameExistsAsync(string username)

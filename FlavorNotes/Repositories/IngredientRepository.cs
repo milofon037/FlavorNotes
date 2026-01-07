@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using FlavorNotes.Data;
 using FlavorNotes.Models.Entities;
 using FlavorNotes.Repositories.Interfaces;
+using FlavorNotes.DTO;
 
 namespace FlavorNotes.Repositories;
 
@@ -17,6 +18,38 @@ public class IngredientRepository : IIngredientRepository
     public async Task<List<Ingredient>> GetAllAsync()
     {
         return await _context.Ingredients.ToListAsync();
+    }
+
+    public async Task<PagedResponseDto<IngredientDto>> GetPagedAsync(int page, int pageSize, string? search)
+    {
+        var query = _context.Ingredients.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(i => i.Name.Contains(search));
+        }
+
+        var total = await query.CountAsync();
+
+        var ingredients = await query
+            .OrderBy(i => i.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var items = ingredients.Select(i => new IngredientDto
+        {
+            IngredientId = i.IngredientId,
+            Name = i.Name
+        }).ToList();
+
+        return new PagedResponseDto<IngredientDto>
+        {
+            Items = items,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<Ingredient?> GetByIdAsync(int id)
@@ -36,4 +69,5 @@ public class IngredientRepository : IIngredientRepository
         return await _context.Ingredients.AnyAsync(i => i.IngredientId == id);
     }
 }
+
 

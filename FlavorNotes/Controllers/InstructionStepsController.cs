@@ -91,6 +91,7 @@ public class InstructionStepsController : ControllerBase
     }
 
     [HttpPut("{stepId}")]
+    [HttpPatch("{stepId}")]
     [Authorize(AuthenticationSchemes = "Bearer")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

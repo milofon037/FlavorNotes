@@ -43,9 +43,6 @@ public class RecipeService : IRecipeService
             return null;
         }
 
-        // All authenticated users can view recipes (including API key)
-        // No additional permission check needed for viewing
-
         var dto = MapToDto(recipe);
         
         await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(dto), new DistributedCacheEntryOptions
@@ -78,7 +75,6 @@ public class RecipeService : IRecipeService
 
     public async Task<RecipeDto> CreateAsync(CreateRecipeDto dto, int userId, string userRole)
     {
-        // User, Manager, and Admin can create recipes
         if (userRole != "Admin" && userRole != "Manager" && userRole != "User")
         {
             throw new UnauthorizedAccessException("You don't have permission to create recipes");
@@ -134,13 +130,11 @@ public class RecipeService : IRecipeService
             throw new KeyNotFoundException("Recipe not found");
         }
 
-        // User can only update own recipes, Manager and Admin can update any
         if (userRole == "User" && recipe.UserId != userId)
         {
             throw new UnauthorizedAccessException("You can only update your own recipes");
         }
         
-        // Manager and Admin can update any recipe
         if (userRole != "Admin" && userRole != "Manager" && userRole != "User")
         {
             throw new UnauthorizedAccessException("You don't have permission to update recipes");
@@ -202,7 +196,6 @@ public class RecipeService : IRecipeService
             throw new KeyNotFoundException("Recipe not found");
         }
 
-        // Only Admin can delete recipes
         if (userRole != "Admin")
         {
             throw new UnauthorizedAccessException("Only Admin can delete recipes");

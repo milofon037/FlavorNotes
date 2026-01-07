@@ -21,7 +21,6 @@ public class DataSeeder : IDataSeeder
         {
             _logger.LogInformation("Starting database seeding...");
 
-            // Check if database is accessible
             var canConnect = await _context.Database.CanConnectAsync();
             if (!canConnect)
             {
@@ -31,7 +30,6 @@ public class DataSeeder : IDataSeeder
 
             _logger.LogInformation("Database connection successful");
 
-            // Check if users table exists and has data
             var hasUsers = false;
             try
             {
@@ -255,7 +253,6 @@ public class DataSeeder : IDataSeeder
         await _context.SaveChangesAsync();
         _logger.LogInformation("Created {Count} favorite recipes", 2);
 
-        // Create test API keys
         var apiKeys = new[]
         {
             new ApiKey

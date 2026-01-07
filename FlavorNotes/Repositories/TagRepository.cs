@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using FlavorNotes.Data;
 using FlavorNotes.Models.Entities;
 using FlavorNotes.Repositories.Interfaces;
+using FlavorNotes.DTO;
 
 namespace FlavorNotes.Repositories;
 
@@ -17,6 +18,38 @@ public class TagRepository : ITagRepository
     public async Task<List<Tag>> GetAllAsync()
     {
         return await _context.Tags.ToListAsync();
+    }
+
+    public async Task<PagedResponseDto<TagDto>> GetPagedAsync(int page, int pageSize, string? search)
+    {
+        var query = _context.Tags.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(t => t.Name.Contains(search));
+        }
+
+        var total = await query.CountAsync();
+
+        var tags = await query
+            .OrderBy(t => t.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var items = tags.Select(t => new TagDto
+        {
+            TagId = t.TagId,
+            Name = t.Name
+        }).ToList();
+
+        return new PagedResponseDto<TagDto>
+        {
+            Items = items,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<Tag?> GetByIdAsync(int id)
@@ -46,4 +79,5 @@ public class TagRepository : ITagRepository
         return await _context.Tags.AnyAsync(t => t.TagId == id);
     }
 }
+
 

@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using FlavorNotes.DTO;
-using FlavorNotes.Repositories.Interfaces;
+using FlavorNotes.Services.Interfaces;
 
 namespace FlavorNotes.Controllers;
 
@@ -10,28 +11,23 @@ namespace FlavorNotes.Controllers;
 [Produces("application/json")]
 public class TagsController : ControllerBase
 {
-    private readonly ITagRepository _tagRepository;
-    private readonly ILogger<TagsController> _logger;
+    private readonly ITagService _tagService;
 
-    public TagsController(ITagRepository tagRepository, ILogger<TagsController> logger)
+    public TagsController(ITagService tagService)
     {
-        _tagRepository = tagRepository;
-        _logger = logger;
+        _tagService = tagService;
     }
 
     [HttpGet]
     [Authorize(AuthenticationSchemes = "Bearer,ApiKey")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<List<TagDto>>> GetTags()
+    public async Task<ActionResult<PagedResponseDto<TagDto>>> GetTags(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null)
     {
-        var tags = await _tagRepository.GetAllAsync();
-        var dtos = tags.Select(t => new TagDto
-        {
-            TagId = t.TagId,
-            Name = t.Name
-        }).ToList();
-        
-        return Ok(dtos);
+        var result = await _tagService.GetPagedAsync(page, pageSize, search);
+        return Ok(result);
     }
 
     [HttpPost]
@@ -41,25 +37,7 @@ public class TagsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<TagDto>> CreateTag([FromBody] TagDto dto)
     {
-        if (string.IsNullOrEmpty(dto.Name))
-        {
-            return BadRequest(new { error = new { code = "VALIDATION_ERROR", message = "Tag name is required" } });
-        }
-
-        var tag = new FlavorNotes.Models.Entities.Tag
-        {
-            Name = dto.Name
-        };
-
-        var created = await _tagRepository.CreateAsync(tag);
-        _logger.LogInformation("Tag created: {TagName}", dto.Name);
-        
-        var result = new TagDto
-        {
-            TagId = created.TagId,
-            Name = created.Name
-        };
-        
+        var result = await _tagService.CreateAsync(dto);
         return CreatedAtAction(nameof(GetTags), new { id = result.TagId }, result);
     }
 
@@ -71,14 +49,8 @@ public class TagsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> DeleteTag(int id)
     {
-        var tag = await _tagRepository.GetByIdAsync(id);
-        if (tag == null)
-        {
-            return NotFound(new { error = new { code = "NOT_FOUND", message = "Tag not found" } });
-        }
-
-        await _tagRepository.DeleteAsync(id);
-        _logger.LogInformation("Tag {TagId} deleted by admin", id);
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "User";
+        await _tagService.DeleteAsync(id, userRole);
         return NoContent();
     }
 }

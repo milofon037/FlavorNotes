@@ -172,13 +172,24 @@ GET /api/recipes?page=1&pageSize=20&search=pasta
 
 ## Idempotency
 
-POST запросы поддерживают идемпотентность:
+POST, PUT, PATCH запросы поддерживают идемпотентность:
 ```bash
 POST /api/recipes \
-  -H "Idempotency-Key: unique-key-12345"
+  -H "Idempotency-Key: unique-key-12345" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Pasta", ...}'
 ```
 
-Повторный запрос с тем же ключом вернёт кэшированный ответ вместо создания дубликата.
+**Особенности:**
+- Повторный запрос с тем же ключом вернёт кэшированный ответ вместо создания дубликата
+- Ключ должен быть уникальным и содержать только буквы, цифры, дефисы, подчёркивания и точки
+- Длина ключа: от 1 до 128 символов (настраивается)
+- Кэш хранится 24 часа (настраивается в `appsettings.json`)
+- Опциональная проверка соответствия тела запроса для предотвращения конфликтов
+- Метрики доступны в Prometheus: `idempotency_requests_total`, `idempotency_request_duration_seconds`
+
+**Пример ответа при повторном запросе:**
+Возвращается тот же статус код и тело ответа, что и при первом запросе.
 
 ## Логирование
 
@@ -470,13 +481,18 @@ pr/
 ├── FlavorNotes/                  # Основной проект API
 │   ├── Controllers/              # HTTP контроллеры
 │   ├── Services/                 # Бизнес-логика
+│   │   └── Interfaces/          # Интерфейсы сервисов
 │   ├── Repositories/             # Слой доступа к данным
-│   ├── Models/Entities/          # EF Core сущности
+│   │   └── Interfaces/          # Интерфейсы репозиториев
+│   ├── Models/
+│   │   └── Entities/            # EF Core сущности (User, Recipe, Category, etc.)
 │   ├── DTO/                      # Модели запросов/ответов
 │   ├── Middleware/               # Custom middleware
-│   ├── Auth/                     # Аутентификация
+│   ├── Auth/                     # Аутентификация (JWT, API Key)
 │   ├── Validators/               # FluentValidation валидаторы
-│   ├── Data/                     # DbContext
+│   ├── Configuration/           # Конфигурационные классы
+│   ├── Swagger/                  # Swagger/OpenAPI настройки
+│   ├── Data/                     # DbContext, DataSeeder
 │   ├── Program.cs                # Конфигурация приложения
 │   ├── appsettings.json          # Параметры конфигурации
 │   └── Dockerfile                # Контейнеризация

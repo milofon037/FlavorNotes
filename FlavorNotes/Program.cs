@@ -15,34 +15,31 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Prometheus;
 using AspNetCoreRateLimit;
-using Serilog;
 using Microsoft.AspNetCore.Authentication;
 using StackExchange.Redis;
 
-// Создаём logs директорию если её нет
-var logsPath = Path.Combine(Directory.GetCurrentDirectory(), "logs");
-if (!Directory.Exists(logsPath))
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
+builder.Logging.AddFilter("Microsoft", LogLevel.Warning);
+builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
+
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.SuppressModelStateInvalidFilter = true;
+    });
+
+builder.Services.Configure<RouteOptions>(options =>
 {
-    Directory.CreateDirectory(logsPath);
-}
+    options.LowercaseUrls = true;
+    options.LowercaseQueryStrings = true;
+});
 
-// Configure Serilog ПЕРЕД созданием WebApplication
-try
-{
-    var builder = WebApplication.CreateBuilder(args);
-
-    // Setup Serilog from configuration
-    Log.Logger = new LoggerConfiguration()
-        .ReadFrom.Configuration(builder.Configuration)
-        .Enrich.FromLogContext()
-        .Enrich.WithProperty("Application", "FlavorNotes")
-        .CreateLogger();
-
-    builder.Host.UseSerilog(Log.Logger);
-
-    builder.Services.AddControllers();
-    builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen(c =>
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
     {
         c.SwaggerDoc("v1", new OpenApiInfo
         {
@@ -115,6 +112,9 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddSingleton<IAuthorizationHandler, FlavorNotes.Auth.ApiKeyAuthorizationHandler>();
 
+builder.Services.Configure<FlavorNotes.Configuration.IdempotencyOptions>(
+    builder.Configuration.GetSection(FlavorNotes.Configuration.IdempotencyOptions.SectionName));
+
 builder.Services.AddMemoryCache();
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
 builder.Services.AddInMemoryRateLimiting();
@@ -135,44 +135,69 @@ builder.Services.AddScoped<IUnitRepository, UnitRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IRecipeService, RecipeService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<ITagService, TagService>();
+builder.Services.AddScoped<IIngredientService, IngredientService>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IDataSeeder, DataSeeder>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<CreateRecipeDtoValidator>();
 
 var app = builder.Build();
 
-// Логируем что приложение стартует
-Log.Information("FlavorNotes API starting...");
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+logger.LogInformation("FlavorNotes API starting...");
 
-// Seeding
 try
 {
-    Log.Information("Creating service scope for seeding...");
+    logger.LogInformation("Creating service scope for seeding...");
     using (var scope = app.Services.CreateScope())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var scopeLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
         
-        logger.LogInformation("Ensuring database is created...");
-        await dbContext.Database.EnsureCreatedAsync();
+        var retries = 0;
+        var maxRetries = 10;
+        while (retries < maxRetries)
+        {
+            try
+            {
+                var canConnect = await dbContext.Database.CanConnectAsync();
+                if (canConnect)
+                {
+                    scopeLogger.LogInformation("Database connection successful");
+                    break;
+                }
+            }
+            catch (Exception ex)
+            {
+                scopeLogger.LogWarning("Database not ready yet (attempt {Attempt}/{MaxRetries}): {Message}", 
+                    retries + 1, maxRetries, ex.Message);
+                retries++;
+                if (retries < maxRetries)
+                {
+                    await Task.Delay(2000);
+                }
+                else
+                {
+                    scopeLogger.LogError("Failed to connect to database after {MaxRetries} attempts", maxRetries);
+                    throw;
+                }
+            }
+        }
         
-        logger.LogInformation("Running pending migrations...");
-        await dbContext.Database.MigrateAsync();
-        
-        logger.LogInformation("Starting database seeding...");
+        scopeLogger.LogInformation("Starting database seeding...");
         var seeder = scope.ServiceProvider.GetRequiredService<IDataSeeder>();
         await seeder.SeedAsync();
         
-        logger.LogInformation("Database seeding completed successfully");
+        scopeLogger.LogInformation("Database seeding completed successfully");
     }
 }
 catch (Exception ex)
 {
-    Log.Error(ex, "An error occurred while seeding the database: {Message}", ex.Message);
-    // Don't throw - allow app to start even if seeding fails
+    logger.LogError(ex, "An error occurred while seeding the database: {Message}", ex.Message);
 }
 
-Log.Information("Building middleware pipeline...");
+logger.LogInformation("Building middleware pipeline...");
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>
@@ -196,14 +221,5 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 app.MapMetrics();
 
-Log.Information("Starting application...");
+logger.LogInformation("Starting application...");
 app.Run();
-}
-catch (Exception ex)
-{
-    Log.Fatal(ex, "Application terminated unexpectedly");
-}
-finally
-{
-    Log.CloseAndFlush();
-}

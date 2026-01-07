@@ -77,7 +77,6 @@ public class RecipeIngredientsController : ControllerBase
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
         var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "User";
 
-        // Check ownership: User can only modify own recipes, Manager and Admin can modify any
         if (userRole == "User" && recipe.UserId != userId)
         {
             return StatusCode(403, new { error = new { code = "FORBIDDEN", message = "You can only modify your own recipes" } });
@@ -121,6 +120,7 @@ public class RecipeIngredientsController : ControllerBase
     }
 
     [HttpPut("{ingredientId}")]
+    [HttpPatch("{ingredientId}")]
     [Authorize(AuthenticationSchemes = "Bearer")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -200,4 +200,5 @@ public class RecipeIngredientsController : ControllerBase
         return NoContent();
     }
 }
+
 

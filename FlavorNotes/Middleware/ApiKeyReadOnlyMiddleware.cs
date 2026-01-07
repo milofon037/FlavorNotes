@@ -13,10 +13,8 @@ public class ApiKeyReadOnlyMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // Check if user is authenticated via API Key
         if (context.User.Identity?.AuthenticationType == "ApiKey")
         {
-            // API Key can only be used for GET requests
             if (context.Request.Method != "GET")
             {
                 _logger.LogWarning("API Key attempted to use {Method} method on {Path}", 
@@ -38,4 +36,5 @@ public class ApiKeyReadOnlyMiddleware
         await _next(context);
     }
 }
+
 

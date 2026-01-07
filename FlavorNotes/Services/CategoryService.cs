@@ -48,6 +48,26 @@ public class CategoryService : ICategoryService
         return dtos;
     }
 
+    public async Task<PagedResponseDto<CategoryDto>> GetPagedAsync(int page, int pageSize, string? search)
+    {
+        var cacheKey = $"categories:paged:{page}:{pageSize}:{search ?? ""}";
+        var cached = await _cache.GetStringAsync(cacheKey);
+        
+        if (cached != null)
+        {
+            return JsonSerializer.Deserialize<PagedResponseDto<CategoryDto>>(cached)!;
+        }
+
+        var result = await _categoryRepository.GetPagedAsync(page, pageSize, search);
+        
+        await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+        });
+
+        return result;
+    }
+
     public async Task<CategoryDto?> GetByIdAsync(int id)
     {
         var cacheKey = $"category:{id}";
